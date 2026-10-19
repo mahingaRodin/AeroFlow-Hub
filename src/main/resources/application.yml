@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: aeroflow-hub
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/aeroflow_db}
+    username: ${DATABASE_USERNAME:postgres}
+    password: ${DATABASE_PASSWORD}
+    hikari:
+      maximum-pool-size: ${DATABASE_POOL_SIZE:10}
+      minimum-idle: ${DATABASE_MIN_IDLE:2}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+server:
+  port: ${SERVER_PORT:8080}
+
+app:
+  security:
+    jwt:
+      # Supply a Base64-encoded key with at least 256 bits of entropy.
+      secret: ${JWT_SECRET_BASE64}
+      expiration: ${JWT_EXPIRATION_MS:900000}

@@ -21,30 +21,43 @@
 
 ---
 
-## 🛠️ Getting Started & Setup
+## Getting Started
 
 ### Prerequisites
-* JDK 21 installed.
-* Maven 3.9+ or Gradle 8+.
-* PostgreSQL instance running locally or via Docker.
+* JDK 21.
+* Maven 3.9+.
+* PostgreSQL with an `aeroflow_db` database.
 
-### 1. Environment Configuration
-Configure your `src/main/resources/application.yml`:
-```yaml
-spring:
-  datasource:
-    url: jdbc:postgresql://localhost:5432/aeroflow_db
-    username: postgres
-    password: yourpassword
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: true
-2. Build and Run
-Bash
-# Clone repository
-git clone [https://github.com/mahingaRodin/AeroFlow-Hub.git](https://github.com/mahingaRodin/AeroFlow-Hub.git)
-cd AeroFlow-Hub
+### Configure and run
+Set the database password and a Base64-encoded JWT signing key of at least 256 bits.
+For example, generate a signing key with:
 
-# Compile and run spring boot application
-mvn clean spring-boot:run
+```bash
+openssl rand -base64 32
+```
+
+Set `DATABASE_PASSWORD` and `JWT_SECRET_BASE64` in the environment, then start the
+service:
+
+```bash
+mvn spring-boot:run
+```
+
+The service listens on port `8080` by default. Database URL and username can be
+overridden with `DATABASE_URL` and `DATABASE_USERNAME`. Hibernate schema update
+is enabled for this bootstrap; use versioned database migrations before
+production deployment.
+
+### Initial API
+* `POST /api/v1/auth/login` — authenticate with a provisioned username/password
+  and receive a bearer token.
+* `POST /api/v1/travel-clearance-requests` — create a draft clearance request.
+* `GET /api/v1/travel-clearance-requests` — list the authenticated user's requests.
+* `POST /api/v1/travel-clearance-requests/{id}/submit` — submit a draft for review.
+* `POST /api/v1/travel-clearance-requests/{id}/approve` or `/reject` — supervisor
+  decisions (requires the `ROLE_SUPERVISOR` authority).
+
+The SITA Type B and SSIM parser components currently preserve message lines as
+input scaffolding; format-specific record validation and extraction remain to
+be implemented. User and role provisioning is also intentionally left to the
+deployment/bootstrap process.
