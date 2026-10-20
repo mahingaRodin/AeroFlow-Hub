@@ -283,7 +283,7 @@ onMounted(loadRequests)
           <div v-if="requests.length > 6" class="table-footer">Showing 6 of {{ requests.length }} requests</div>
         </section>
 
-        <footer class="page-footer"><span>© 2025 AeroFlow Hub</span><span>Built for the people who keep us moving <span class="footer-heart">✳</span></span></footer>
+        <footer class="page-footer"><span>© 2026 AeroFlow Hub</span><span>Built for the people who keep us moving <span class="footer-heart">✳</span></span></footer>
       </section>
     </main>
 

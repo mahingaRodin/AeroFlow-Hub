@@ -44,6 +44,10 @@ openssl rand -base64 32
 Then start the backend from the repository root:
 
 ```bash
+# PowerShell: set these in the same terminal before starting Spring Boot.
+$env:DATABASE_PASSWORD = "your-local-postgres-password"
+$env:JWT_SECRET_BASE64 = (openssl rand -base64 32)
+
 cd be
 mvn spring-boot:run
 ```
