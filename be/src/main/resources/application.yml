@@ -5,6 +5,12 @@ spring:
       - optional:file:be/.env[.properties]
   application:
     name: aeroflow-hub
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    protocol: ${MAIL_PROTOCOL:smtp}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/aeroflow_db}
     username: ${DATABASE_USERNAME:postgres}
