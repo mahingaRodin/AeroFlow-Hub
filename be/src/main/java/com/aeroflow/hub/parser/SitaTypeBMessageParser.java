@@ -22,7 +22,7 @@ public class SitaTypeBMessageParser {
         }
 
         List<ParsedSitaMessage> messages = new ArrayList<>();
-        List<ParseIssue> issues = new ArrayList<>();
+        ParseIssueCollector issues = new ParseIssueCollector();
         List<String> currentLines = null;
         int startLine = 0;
         String[] lines = stream.split("\\R", -1);
@@ -67,7 +67,8 @@ public class SitaTypeBMessageParser {
                     String.join("\n", currentLines)));
         }
 
-        return new ParsedSitaStream(List.copyOf(messages), List.copyOf(issues));
+        return new ParsedSitaStream(
+                List.copyOf(messages), issues.issues(), issues.totalCount(), issues.truncated());
     }
 
     private List<String> splitLines(String text) {
@@ -87,6 +88,11 @@ public class SitaTypeBMessageParser {
     public record ParsedSitaMessage(String rawMessage, List<String> lines) {
     }
 
-    public record ParsedSitaStream(List<ParsedSitaMessage> messages, List<ParseIssue> issues) {
+    public record ParsedSitaStream(
+            List<ParsedSitaMessage> messages,
+            List<ParseIssue> issues,
+            int issueCount,
+            boolean issuesTruncated
+    ) {
     }
 }

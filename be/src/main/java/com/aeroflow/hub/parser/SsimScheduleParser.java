@@ -17,7 +17,7 @@ public class SsimScheduleParser {
                 .map(String::stripTrailing)
                 .toList();
         List<SsimRecord> records = new ArrayList<>();
-        List<ParseIssue> issues = new ArrayList<>();
+        ParseIssueCollector issues = new ParseIssueCollector();
 
         for (int index = 0; index < lines.size(); index++) {
             String line = lines.get(index);
@@ -39,14 +39,21 @@ public class SsimScheduleParser {
         }
 
         return new ParsedSsimSchedule(
-                scheduleText, lines, List.copyOf(records), List.copyOf(issues));
+                scheduleText,
+                lines,
+                List.copyOf(records),
+                issues.issues(),
+                issues.totalCount(),
+                issues.truncated());
     }
 
     public record ParsedSsimSchedule(
             String rawSchedule,
             List<String> lines,
             List<SsimRecord> records,
-            List<ParseIssue> issues
+            List<ParseIssue> issues,
+            int issueCount,
+            boolean issuesTruncated
     ) {
     }
 

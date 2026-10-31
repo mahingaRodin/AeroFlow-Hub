@@ -2,6 +2,7 @@ package com.aeroflow.hub.parser;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -46,5 +47,16 @@ class SitaTypeBMessageParserTest {
     @Test
     void rejectsBlankInput() {
         assertThrows(IllegalArgumentException.class, () -> parser.parseStream(" \r\n"));
+    }
+
+    @Test
+    void capsReportedIssuesButPreservesTheTotalIssueCount() {
+        String stream = "unframed\n".repeat(ParseIssueCollector.MAX_REPORTED_ISSUES + 1);
+
+        var result = parser.parseStream(stream);
+
+        assertEquals(ParseIssueCollector.MAX_REPORTED_ISSUES, result.issues().size());
+        assertEquals(ParseIssueCollector.MAX_REPORTED_ISSUES + 1, result.issueCount());
+        assertTrue(result.issuesTruncated());
     }
 }

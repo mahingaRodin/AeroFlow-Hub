@@ -3,6 +3,7 @@ package com.aeroflow.hub.parser;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 
@@ -42,5 +43,16 @@ class SsimScheduleParserTest {
     @Test
     void rejectsBlankInput() {
         assertThrows(IllegalArgumentException.class, () -> parser.parse("\r\n "));
+    }
+
+    @Test
+    void capsReportedIssuesButPreservesTheTotalIssueCount() {
+        String schedule = "X\n".repeat(ParseIssueCollector.MAX_REPORTED_ISSUES + 1);
+
+        var result = parser.parse(schedule);
+
+        assertEquals(ParseIssueCollector.MAX_REPORTED_ISSUES, result.issues().size());
+        assertEquals(ParseIssueCollector.MAX_REPORTED_ISSUES + 1, result.issueCount());
+        assertTrue(result.issuesTruncated());
     }
 }
