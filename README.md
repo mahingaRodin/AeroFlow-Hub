@@ -59,10 +59,32 @@ either location. The `.env` file is ignored by Git; do not commit real
 credentials. Production deployments should inject secrets through the
 deployment's secret manager instead.
 
-SMTP is optional for startup. To enable OTP email delivery, set `MAIL_HOST`,
+SMTP is optional for startup. To enable email notifications, set `MAIL_HOST`,
 `MAIL_PORT`, `MAIL_USERNAME`, and `MAIL_PASSWORD` in `be/.env` (or provide
 them through the deployment secret manager). The `spring-boot-starter-mail`
-dependency supplies the Jakarta Mail classes required by `MailConfig`.
+dependency supplies the Jakarta Mail classes required by `MailConfig`. The
+backend exposes `EmailNotificationService.sendTextEmail(...)` for sending
+plain-text notifications. No OTP or other application flow currently invokes
+the mail service; SMTP delivery should be verified with a controlled test
+mailbox before wiring email into user-facing workflows.
+
+### Provision the first administrator
+There is no public registration endpoint. To create the first administrator,
+set `BOOTSTRAP_ADMIN_ENABLED=true`, `BOOTSTRAP_ADMIN_USERNAME`,
+`BOOTSTRAP_ADMIN_EMAIL`, and `BOOTSTRAP_ADMIN_PASSWORD` in `be/.env`, then
+start the backend. The bootstrap only creates `ROLE_ADMIN` when the user table
+is empty, BCrypt-hashes the password, and does not change existing accounts.
+Use a unique password of at least 12 characters (maximum 72 UTF-8 bytes).
+After the first successful startup, set `BOOTSTRAP_ADMIN_ENABLED=false` and
+restart the service. If any users already exist, provisioning is skipped; use
+your controlled administrative process to grant roles to existing accounts.
+
+### Database migrations
+Flyway applies versioned schema migrations from `be/src/main/resources/db/migration`,
+and Hibernate validates the schema at startup. Existing non-empty databases
+are baselined at version 1; back up existing data and confirm its schema matches
+the initial migration before upgrading. PostgreSQL integration tests use
+Testcontainers and are skipped automatically when Docker is unavailable.
 
 Start the backend from `be/`:
 

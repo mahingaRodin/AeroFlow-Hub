@@ -4,12 +4,14 @@
 Get the foundational Spring Boot service up, running, secured, and processing basic requests.
 
 - [ ] **Project Setup & Database Schema**
-    - [ ] Initialize PostgreSQL database (`aeroflow_db`) and verify Hibernate/JPA auto-ddl configurations.
+    - [x] Add versioned Flyway schema migration and validate Hibernate mappings on startup.
+    - [ ] Initialize PostgreSQL database (`aeroflow_db`) and verify local connection configuration.
     - [ ] Configure database connection pooling (HikariCP) and environment-specific properties (`application.yml`).
 - [ ] **Security & Identity Layer**
     - [ ] Implement Spring Security filter chain with stateless JWT token validation.
     - [ ] Create User, Role, and Permission entity models with Role-Based Access Control (RBAC).
     - [ ] Implement `/api/v1/auth/login` and token generation endpoints.
+    - [x] Add opt-in, idempotent first-administrator provisioning for an empty user table.
 - [ ] **Core Workflow Engine (State Machine)**
     - [ ] Define the lifecycle states for travel clearances (`DRAFT`, `PENDING_SUPERVISOR`, `PENDING_FINANCE`, `APPROVED`, `REJECTED`).
     - [ ] Integrate a state machine library (or custom transition validator) to handle electronic sign-offs.
@@ -21,7 +23,7 @@ Get the foundational Spring Boot service up, running, secured, and processing ba
     - [x] Persist malformed messages with issue details, authenticated ingestion endpoints, restricted quarantine access, and configurable retention cleanup.
 - [ ] **Testing & Quality Assurance**
     - [ ] Write unit tests for workflow state transitions using JUnit 5 and Mockito.
-    - [ ] Set up integration tests for REST endpoints and Spring Security configurations.
+    - [x] Add PostgreSQL Testcontainers integration coverage for migrations, admin bootstrap, login, and ingestion security.
 
 ---
 
