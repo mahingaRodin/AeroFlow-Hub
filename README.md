@@ -34,21 +34,39 @@
 * PostgreSQL with an `aeroflow_db` database.
 
 ### Configure the backend
-Set `DATABASE_PASSWORD` and a Base64-encoded JWT signing key of at least 256 bits.
-For example, generate a key with:
+Create a local environment file from the template:
+
+```powershell
+cd be
+Copy-Item .env.example .env
+```
+
+Edit `be/.env` and set your PostgreSQL password. Generate a Base64-encoded JWT
+signing key with at least 256 bits of entropy:
 
 ```bash
 openssl rand -base64 32
 ```
 
-Then start the backend from the repository root:
+Paste the complete output (including any trailing `=` padding) into
+`JWT_SECRET_BASE64` in `be/.env`. The application accepts standard Base64 or
+Base64URL encoding and requires at least 32 decoded bytes. Ensure IntelliJ's
+Run Configuration does not override this value with a stale or placeholder
+environment variable. Spring Boot
+imports that file whether you start the service from the repository root, the
+`be` directory, or an IntelliJ run configuration whose working directory is
+either location. The `.env` file is ignored by Git; do not commit real
+credentials. Production deployments should inject secrets through the
+deployment's secret manager instead.
 
-```bash
-# PowerShell: set these in the same terminal before starting Spring Boot.
-$env:DATABASE_PASSWORD = "your-local-postgres-password"
-$env:JWT_SECRET_BASE64 = (openssl rand -base64 32)
+SMTP is optional for startup. To enable OTP email delivery, set `MAIL_HOST`,
+`MAIL_PORT`, `MAIL_USERNAME`, and `MAIL_PASSWORD` in `be/.env` (or provide
+them through the deployment secret manager). The `spring-boot-starter-mail`
+dependency supplies the Jakarta Mail classes required by `MailConfig`.
 
-cd be
+Start the backend from `be/`:
+
+```powershell
 mvn spring-boot:run
 ```
 
@@ -86,5 +104,19 @@ The frontend currently supports sign-in, creating and viewing personal travel
 clearances, and submitting drafts for approval. User/role provisioning is a
 deployment responsibility. Hibernate schema update is enabled for the initial
 bootstrap; switch to versioned database migrations before production. SITA Type
-B and SSIM parsers are input scaffolds; format-specific extraction remains to
-be implemented.
+B and SSIM parsing currently provides stream framing/record-type recognition
+and preserves raw content with line-numbered issues. Format-specific field
+extraction remains to be implemented.
+
+### Message ingestion and quarantine
+Authenticated users may submit JSON payloads to `POST /api/v1/ingestion/sita`
+or `POST /api/v1/ingestion/ssim` (maximum payload: 1,000,000 characters).
+Successful parses return `200`; inputs with parse issues return `202` and are
+stored in the quarantine. Both endpoints accept a JSON body such as
+`{"payload":"ZCZC AB123\\nmessage body\\nNNNN"}`. Supervisors and admins can
+page through quarantine summaries at `GET /api/v1/ingestion/quarantine`; only
+admins can view a detail record, including its raw payload, at
+`GET /api/v1/ingestion/quarantine/{id}`. Raw payloads and issue excerpts are
+sensitive operational data. Quarantine entries expire after 30 days by
+default; `QUARANTINE_RETENTION_DAYS` configures the retention period and
+`QUARANTINE_CLEANUP_CRON` configures the daily deletion schedule.

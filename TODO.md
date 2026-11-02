@@ -15,9 +15,10 @@ Get the foundational Spring Boot service up, running, secured, and processing ba
     - [ ] Integrate a state machine library (or custom transition validator) to handle electronic sign-offs.
     - [ ] Build CRUD REST controllers and service layers for travel clearance requests.
 - [ ] **SITA & SSIM Integration Parser (Module 1)**
-    - [ ] Write text-stream parsing logic to ingest standard SITA Type B messages.
-    - [ ] Build structural parsers for SSIM (Standard Schedules Information Manual) flight schedules.
-    - [ ] Implement an automated error quarantine table/queue for malformed or corrupted incoming message streams.
+    - [x] Add SITA Type B envelope framing for `ZCZC` / `NNNN` streams with line-numbered parse issues.
+    - [x] Recognize SSIM record types 1–7 while preserving raw records and reporting unrecognized lines.
+    - [ ] Add format-specific field extraction and validation against licensed, versioned SITA/SSIM specifications and representative samples.
+    - [x] Persist malformed messages with issue details, authenticated ingestion endpoints, restricted quarantine access, and configurable retention cleanup.
 - [ ] **Testing & Quality Assurance**
     - [ ] Write unit tests for workflow state transitions using JUnit 5 and Mockito.
     - [ ] Set up integration tests for REST endpoints and Spring Security configurations.
