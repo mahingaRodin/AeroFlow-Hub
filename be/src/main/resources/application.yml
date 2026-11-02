@@ -48,6 +48,7 @@ app:
     allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   security:
     jwt:
-      # Supply a Base64-encoded key with at least 256 bits of entropy.
-      secret: ${JWT_SECRET_BASE64}
+      # No usable default: JwtService fails startup unless this decodes to at least 32 bytes.
+      # JWT_SECRET_BASE64 is the documented variable; APP_SECURITY_JWT_SECRET is the Spring alias.
+      secret: ${JWT_SECRET_BASE64:${APP_SECURITY_JWT_SECRET:}}
       expiration: ${JWT_EXPIRATION_MS:900000}

@@ -34,7 +34,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
         "app.bootstrap.admin.username=integration-admin",
         "app.bootstrap.admin.email=integration-admin@example.test",
         "app.bootstrap.admin.password=IntegrationAdminPassword123",
-        "app.security.jwt.secret=7c2M3k9zX4s8A1b6C0d5E9f2G7h1J4m8L3n6P0q5R9t=",
         "app.security.jwt.expiration=900000",
         "spring.jpa.hibernate.ddl-auto=validate",
         "spring.flyway.baseline-on-migrate=false"
@@ -43,6 +42,8 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class BackendIntegrationTest {
 
     private static final String ADMIN_PASSWORD = "IntegrationAdminPassword123";
+    private static final String TEST_JWT_SECRET =
+            "7c2M3k9zX4s8A1b6C0d5E9f2G7h1J4m8L3n6P0q5R9t=";
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES =
@@ -71,6 +72,8 @@ class BackendIntegrationTest {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
         registry.add("spring.datasource.username", POSTGRES::getUsername);
         registry.add("spring.datasource.password", POSTGRES::getPassword);
+        registry.add("JWT_SECRET_BASE64", () -> TEST_JWT_SECRET);
+        registry.add("APP_SECURITY_JWT_SECRET", () -> TEST_JWT_SECRET);
     }
 
     @Test

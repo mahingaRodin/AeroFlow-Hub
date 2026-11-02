@@ -5,10 +5,28 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Base64;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.core.env.StandardEnvironment;
+import org.springframework.core.env.SystemEnvironmentPropertySource;
 import org.springframework.security.core.userdetails.User;
 
 class JwtServiceTest {
+
+    @Test
+    void resolvesJwtSecretFromSpringRelaxedEnvironmentVariable() {
+        String secret = Base64.getEncoder().encodeToString(new byte[32]);
+        var environment = new StandardEnvironment();
+        environment.getPropertySources().addFirst(new SystemEnvironmentPropertySource(
+                "test-environment", Map.of("APP_SECURITY_JWT_SECRET", secret)));
+        var service = new JwtService(environment.getProperty("app.security.jwt.secret"), 900_000);
+        var user = User.withUsername("crew.user").password("not-used").authorities("ROLE_CREW").build();
+
+        String token = service.generateToken(user);
+
+        assertEquals("crew.user", service.extractUsername(token));
+        assertTrue(service.isTokenValid(token, user));
+    }
 
     @Test
     void createsAndValidatesTokenWithStandardBase64SigningKey() {
@@ -30,6 +48,15 @@ class JwtServiceTest {
 
         assertTrue(exception.getMessage().contains("at least 32 bytes"));
         assertTrue(exception.getMessage().contains("openssl rand -base64 32"));
+    }
+
+    @Test
+    void rejectsBlankSecretAtStartup() {
+        IllegalStateException exception = assertThrows(
+                IllegalStateException.class,
+                () -> new JwtService("  ", 900_000));
+
+        assertTrue(exception.getMessage().contains("JWT_SECRET_BASE64 is required"));
     }
 
     @Test

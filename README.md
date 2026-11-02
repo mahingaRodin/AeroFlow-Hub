@@ -52,7 +52,10 @@ Paste the complete output (including any trailing `=` padding) into
 `JWT_SECRET_BASE64` in `be/.env`. The application accepts standard Base64 or
 Base64URL encoding and requires at least 32 decoded bytes. Ensure IntelliJ's
 Run Configuration does not override this value with a stale or placeholder
-environment variable. Spring Boot
+environment variable. Startup fails if the secret is missing, malformed, or
+too short; there is no insecure default. Spring also accepts the standard
+`APP_SECURITY_JWT_SECRET` environment-variable name for
+`app.security.jwt.secret`. Spring Boot
 imports that file whether you start the service from the repository root, the
 `be` directory, or an IntelliJ run configuration whose working directory is
 either location. The `.env` file is ignored by Git; do not commit real
