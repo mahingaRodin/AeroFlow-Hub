@@ -22,7 +22,7 @@ Get the foundational Spring Boot service up, running, secured, and processing ba
     - [ ] Add format-specific field extraction and validation against licensed, versioned SITA/SSIM specifications and representative samples.
     - [x] Persist malformed messages with issue details, authenticated ingestion endpoints, restricted quarantine access, and configurable retention cleanup.
 - [ ] **Testing & Quality Assurance**
-    - [ ] Write unit tests for workflow state transitions using JUnit 5 and Mockito.
+    - [x] Write unit tests for workflow state transitions using JUnit 5.
     - [x] Add PostgreSQL Testcontainers integration coverage for migrations, admin bootstrap, login, and ingestion security.
 
 ---
