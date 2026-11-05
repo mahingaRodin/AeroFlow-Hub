@@ -101,6 +101,10 @@ class BackendIntegrationTest {
         assertNotNull(token);
         assertTrue(!token.isBlank());
 
+        mockMvc.perform(get("/api/v1/travel-clearance-requests/pending")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(status().isForbidden());
+
         String malformedPayload = "1HEADER\nXINVALID";
         JsonNode ingestionResponse = objectMapper.readTree(mockMvc.perform(post("/api/v1/ingestion/ssim")
                         .header("Authorization", "Bearer " + token)

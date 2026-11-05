@@ -122,6 +122,8 @@ environment variables.
 * `POST /api/v1/travel-clearance-requests` — create a draft clearance request.
 * `GET /api/v1/travel-clearance-requests` — list the authenticated user's requests.
 * `POST /api/v1/travel-clearance-requests/{id}/submit` — submit a draft for review.
+* `GET /api/v1/travel-clearance-requests/pending` — list requests awaiting review,
+  oldest first (requires the `ROLE_SUPERVISOR` authority).
 * `POST /api/v1/travel-clearance-requests/{id}/approve` or `/reject` — supervisor
   decisions (requires the `ROLE_SUPERVISOR` authority).
 

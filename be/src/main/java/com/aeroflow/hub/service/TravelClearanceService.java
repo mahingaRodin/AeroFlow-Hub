@@ -32,6 +32,12 @@ public class TravelClearanceService {
     }
 
     @Transactional(readOnly = true)
+    public List<TravelClearanceRequest> findPendingForSupervisor() {
+        return requestRepository.findAllByStatusOrderByCreatedAtAsc(
+                TravelClearanceStatus.PENDING_SUPERVISOR);
+    }
+
+    @Transactional(readOnly = true)
     public TravelClearanceRequest findForRequester(UUID id, String username) {
         return requestRepository.findByIdAndRequester_Username(id, username)
                 .orElseThrow(() -> new ResourceNotFoundException("Travel clearance request not found"));

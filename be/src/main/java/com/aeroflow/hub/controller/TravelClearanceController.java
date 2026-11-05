@@ -45,6 +45,14 @@ public class TravelClearanceController {
                 .toList();
     }
 
+    @GetMapping("/pending")
+    @PreAuthorize("hasRole('SUPERVISOR')")
+    public List<TravelClearanceResponse> findPendingForSupervisor() {
+        return travelClearanceService.findPendingForSupervisor().stream()
+                .map(TravelClearanceController::toResponse)
+                .toList();
+    }
+
     @GetMapping("/{id}")
     public TravelClearanceResponse findMine(@PathVariable UUID id, Authentication authentication) {
         return toResponse(travelClearanceService.findForRequester(id, authentication.getName()));
