@@ -1,5 +1,6 @@
 package com.aeroflow.hub.model;
 
+import com.aeroflow.hub.enums.ETravelClearanceStatus;
 import com.aeroflow.hub.exception.InvalidWorkflowTransitionException;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -39,7 +40,7 @@ public class TravelClearanceRequest extends AuditedEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)
-    private TravelClearanceStatus status = TravelClearanceStatus.DRAFT;
+    private ETravelClearanceStatus status = ETravelClearanceStatus.DRAFT;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "requester_id", nullable = false)
@@ -64,11 +65,11 @@ public class TravelClearanceRequest extends AuditedEntity {
         return new TravelClearanceRequest(purpose, destination, travelDate, requester);
     }
 
-    public void transitionTo(TravelClearanceStatus target) {
+    public void transitionTo(ETravelClearanceStatus target) {
         boolean allowed = switch (status) {
-            case DRAFT -> target == TravelClearanceStatus.PENDING_SUPERVISOR;
+            case DRAFT -> target == ETravelClearanceStatus.PENDING_SUPERVISOR;
             case PENDING_SUPERVISOR ->
-                    target == TravelClearanceStatus.APPROVED || target == TravelClearanceStatus.REJECTED;
+                    target == ETravelClearanceStatus.APPROVED || target == ETravelClearanceStatus.REJECTED;
             case APPROVED, REJECTED -> false;
         };
 

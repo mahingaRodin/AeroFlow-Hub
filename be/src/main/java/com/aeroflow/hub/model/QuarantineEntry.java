@@ -1,5 +1,6 @@
 package com.aeroflow.hub.model;
 
+import com.aeroflow.hub.enums.EMessageFormat;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -40,7 +41,7 @@ public class QuarantineEntry extends AuditedEntity {
 
     @Enumerated(EnumType.STRING)
     @Column(name = "message_format", nullable = false, length = 32)
-    private MessageFormat messageFormat;
+    private EMessageFormat eMessageFormat;
 
     @Column(name = "raw_payload", nullable = false, columnDefinition = "text")
     private String rawPayload;
@@ -66,7 +67,7 @@ public class QuarantineEntry extends AuditedEntity {
     private Instant expiresAt;
 
     private QuarantineEntry(
-            MessageFormat messageFormat,
+            EMessageFormat eMessageFormat,
             String rawPayload,
             String submittedBy,
             List<QuarantineIssue> issues,
@@ -74,7 +75,7 @@ public class QuarantineEntry extends AuditedEntity {
             boolean issuesTruncated,
             Instant expiresAt
     ) {
-        this.messageFormat = messageFormat;
+        this.eMessageFormat = eMessageFormat;
         this.rawPayload = rawPayload;
         this.submittedBy = submittedBy;
         this.issues = List.copyOf(issues);
@@ -84,7 +85,7 @@ public class QuarantineEntry extends AuditedEntity {
     }
 
     public static QuarantineEntry create(
-            MessageFormat messageFormat,
+            EMessageFormat eMessageFormat,
             String rawPayload,
             String submittedBy,
             List<QuarantineIssue> issues,
@@ -93,6 +94,6 @@ public class QuarantineEntry extends AuditedEntity {
             Instant expiresAt
     ) {
         return new QuarantineEntry(
-                messageFormat, rawPayload, submittedBy, issues, issueCount, issuesTruncated, expiresAt);
+                eMessageFormat, rawPayload, submittedBy, issues, issueCount, issuesTruncated, expiresAt);
     }
 }

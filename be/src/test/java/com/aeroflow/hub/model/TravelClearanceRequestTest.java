@@ -3,6 +3,7 @@ package com.aeroflow.hub.model;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.aeroflow.hub.enums.ETravelClearanceStatus;
 import com.aeroflow.hub.exception.InvalidWorkflowTransitionException;
 import java.time.LocalDate;
 import java.util.EnumMap;
@@ -18,37 +19,37 @@ class TravelClearanceRequestTest {
         var request = TravelClearanceRequest.create(
                 "Crew positioning", "Nairobi", LocalDate.now(), new User());
 
-        assertEquals(TravelClearanceStatus.DRAFT, request.getStatus());
+        assertEquals(ETravelClearanceStatus.DRAFT, request.getStatus());
 
-        request.transitionTo(TravelClearanceStatus.PENDING_SUPERVISOR);
-        assertEquals(TravelClearanceStatus.PENDING_SUPERVISOR, request.getStatus());
-        request.transitionTo(TravelClearanceStatus.REJECTED);
-        assertEquals(TravelClearanceStatus.REJECTED, request.getStatus());
+        request.transitionTo(ETravelClearanceStatus.PENDING_SUPERVISOR);
+        assertEquals(ETravelClearanceStatus.PENDING_SUPERVISOR, request.getStatus());
+        request.transitionTo(ETravelClearanceStatus.REJECTED);
+        assertEquals(ETravelClearanceStatus.REJECTED, request.getStatus());
 
         request = TravelClearanceRequest.create(
                 "Crew positioning", "Nairobi", LocalDate.now(), new User());
-        request.transitionTo(TravelClearanceStatus.PENDING_SUPERVISOR);
-        request.transitionTo(TravelClearanceStatus.APPROVED);
-        assertEquals(TravelClearanceStatus.APPROVED, request.getStatus());
+        request.transitionTo(ETravelClearanceStatus.PENDING_SUPERVISOR);
+        request.transitionTo(ETravelClearanceStatus.APPROVED);
+        assertEquals(ETravelClearanceStatus.APPROVED, request.getStatus());
     }
 
     @Test
     void rejectsEveryTransitionOutsideTheLifecycle() {
-        Map<TravelClearanceStatus, Set<TravelClearanceStatus>> allowedTransitions =
-                new EnumMap<>(TravelClearanceStatus.class);
+        Map<ETravelClearanceStatus, Set<ETravelClearanceStatus>> allowedTransitions =
+                new EnumMap<>(ETravelClearanceStatus.class);
         allowedTransitions.put(
-                TravelClearanceStatus.DRAFT,
-                EnumSet.of(TravelClearanceStatus.PENDING_SUPERVISOR));
+                ETravelClearanceStatus.DRAFT,
+                EnumSet.of(ETravelClearanceStatus.PENDING_SUPERVISOR));
         allowedTransitions.put(
-                TravelClearanceStatus.PENDING_SUPERVISOR,
-                EnumSet.of(TravelClearanceStatus.APPROVED, TravelClearanceStatus.REJECTED));
+                ETravelClearanceStatus.PENDING_SUPERVISOR,
+                EnumSet.of(ETravelClearanceStatus.APPROVED, ETravelClearanceStatus.REJECTED));
         allowedTransitions.put(
-                TravelClearanceStatus.APPROVED, EnumSet.noneOf(TravelClearanceStatus.class));
+                ETravelClearanceStatus.APPROVED, EnumSet.noneOf(ETravelClearanceStatus.class));
         allowedTransitions.put(
-                TravelClearanceStatus.REJECTED, EnumSet.noneOf(TravelClearanceStatus.class));
+                ETravelClearanceStatus.REJECTED, EnumSet.noneOf(ETravelClearanceStatus.class));
 
-        for (TravelClearanceStatus source : TravelClearanceStatus.values()) {
-            for (TravelClearanceStatus target : TravelClearanceStatus.values()) {
+        for (ETravelClearanceStatus source : ETravelClearanceStatus.values()) {
+            for (ETravelClearanceStatus target : ETravelClearanceStatus.values()) {
                 if (allowedTransitions.get(source).contains(target)) {
                     continue;
                 }
@@ -63,13 +64,13 @@ class TravelClearanceRequestTest {
         }
     }
 
-    private static TravelClearanceRequest requestInStatus(TravelClearanceStatus status) {
+    private static TravelClearanceRequest requestInStatus(ETravelClearanceStatus status) {
         var request = TravelClearanceRequest.create(
                 "Crew positioning", "Nairobi", LocalDate.now(), new User());
-        if (status != TravelClearanceStatus.DRAFT) {
-            request.transitionTo(TravelClearanceStatus.PENDING_SUPERVISOR);
+        if (status != ETravelClearanceStatus.DRAFT) {
+            request.transitionTo(ETravelClearanceStatus.PENDING_SUPERVISOR);
         }
-        if (status == TravelClearanceStatus.APPROVED || status == TravelClearanceStatus.REJECTED) {
+        if (status == ETravelClearanceStatus.APPROVED || status == ETravelClearanceStatus.REJECTED) {
             request.transitionTo(status);
         }
         return request;

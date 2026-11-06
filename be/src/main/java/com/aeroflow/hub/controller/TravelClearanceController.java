@@ -1,10 +1,12 @@
 package com.aeroflow.hub.controller;
 
 import com.aeroflow.hub.model.TravelClearanceRequest;
-import com.aeroflow.hub.model.TravelClearanceStatus;
+import com.aeroflow.hub.enums.ETravelClearanceStatus;
 import com.aeroflow.hub.service.TravelClearanceService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.FutureOrPresent;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -13,18 +15,22 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/travel-clearance-requests")
 @RequiredArgsConstructor
+@Validated
 public class TravelClearanceController {
 
     private final TravelClearanceService travelClearanceService;
@@ -47,10 +53,18 @@ public class TravelClearanceController {
 
     @GetMapping("/pending")
     @PreAuthorize("hasRole('SUPERVISOR')")
-    public List<TravelClearanceResponse> findPendingForSupervisor() {
-        return travelClearanceService.findPendingForSupervisor().stream()
-                .map(TravelClearanceController::toResponse)
-                .toList();
+    public PendingReviewPage findPendingForSupervisor(
+            @RequestParam(defaultValue = "0") @Min(0) int page,
+            @RequestParam(defaultValue = "20") @Min(1) @Max(100) int size
+    ) {
+        Page<TravelClearanceRequest> results = travelClearanceService.findPendingForSupervisor(page, size);
+        return new PendingReviewPage(
+                results.getContent().stream().map(TravelClearanceController::toResponse).toList(),
+                results.getNumber(),
+                results.getSize(),
+                results.getTotalElements(),
+                results.getTotalPages(),
+                results.isLast());
     }
 
     @GetMapping("/{id}")
@@ -66,13 +80,13 @@ public class TravelClearanceController {
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasRole('SUPERVISOR')")
     public TravelClearanceResponse approve(@PathVariable UUID id) {
-        return toResponse(travelClearanceService.decide(id, TravelClearanceStatus.APPROVED));
+        return toResponse(travelClearanceService.decide(id, ETravelClearanceStatus.APPROVED));
     }
 
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasRole('SUPERVISOR')")
     public TravelClearanceResponse reject(@PathVariable UUID id) {
-        return toResponse(travelClearanceService.decide(id, TravelClearanceStatus.REJECTED));
+        return toResponse(travelClearanceService.decide(id, ETravelClearanceStatus.REJECTED));
     }
 
     private static TravelClearanceResponse toResponse(TravelClearanceRequest request) {
@@ -92,10 +106,20 @@ public class TravelClearanceController {
             String purpose,
             String destination,
             LocalDate travelDate,
-            TravelClearanceStatus status,
+            ETravelClearanceStatus status,
             String requesterUsername,
             Instant createdAt,
             Instant updatedAt
+    ) {
+    }
+
+    public record PendingReviewPage(
+            List<TravelClearanceResponse> content,
+            int page,
+            int size,
+            long totalElements,
+            int totalPages,
+            boolean last
     ) {
     }
 

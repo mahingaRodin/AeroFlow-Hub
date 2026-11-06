@@ -1,17 +1,20 @@
 package com.aeroflow.hub.repository;
 
 import com.aeroflow.hub.model.TravelClearanceRequest;
-import com.aeroflow.hub.model.TravelClearanceStatus;
+import com.aeroflow.hub.enums.ETravelClearanceStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface TravelClearanceRequestRepository extends JpaRepository<TravelClearanceRequest, UUID> {
 
     @EntityGraph(attributePaths = "requester")
-    List<TravelClearanceRequest> findAllByStatusOrderByCreatedAtAsc(TravelClearanceStatus status);
+    Page<TravelClearanceRequest> findAllByStatusOrderByCreatedAtAscIdAsc(
+            ETravelClearanceStatus status, Pageable pageable);
 
     @EntityGraph(attributePaths = "requester")
     List<TravelClearanceRequest> findAllByRequester_UsernameOrderByCreatedAtDesc(String username);

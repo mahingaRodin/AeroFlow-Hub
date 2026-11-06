@@ -1,6 +1,6 @@
 package com.aeroflow.hub.service;
 
-import com.aeroflow.hub.model.MessageFormat;
+import com.aeroflow.hub.enums.EMessageFormat;
 import com.aeroflow.hub.model.QuarantineEntry;
 import com.aeroflow.hub.model.QuarantineIssue;
 import com.aeroflow.hub.exception.ResourceNotFoundException;
@@ -49,7 +49,7 @@ public class MessageIngestionService {
     public IngestionResult ingestSita(String payload, String submittedBy) {
         var parsed = sitaParser.parseStream(payload);
         return completeIngestion(
-                MessageFormat.SITA_TYPE_B,
+                EMessageFormat.SITA_TYPE_B,
                 payload,
                 submittedBy,
                 parsed.messages().size(),
@@ -62,7 +62,7 @@ public class MessageIngestionService {
     public IngestionResult ingestSsim(String payload, String submittedBy) {
         var parsed = ssimParser.parse(payload);
         return completeIngestion(
-                MessageFormat.SSIM,
+                EMessageFormat.SSIM,
                 payload,
                 submittedBy,
                 parsed.records().size(),
@@ -72,7 +72,7 @@ public class MessageIngestionService {
     }
 
     private IngestionResult completeIngestion(
-            MessageFormat format,
+            EMessageFormat format,
             String payload,
             String submittedBy,
             int recordCount,
@@ -130,7 +130,7 @@ public class MessageIngestionService {
     }
 
     public record IngestionResult(
-            MessageFormat messageFormat,
+            EMessageFormat eMessageFormat,
             int recordCount,
             int issueCount,
             UUID quarantineId,
@@ -142,7 +142,7 @@ public class MessageIngestionService {
 
     public record QuarantineSummary(
             UUID id,
-            MessageFormat messageFormat,
+            EMessageFormat eMessageFormat,
             String submittedBy,
             int issueCount,
             boolean issuesTruncated,
@@ -152,7 +152,7 @@ public class MessageIngestionService {
         static QuarantineSummary from(QuarantineEntry entry) {
             return new QuarantineSummary(
                     entry.getId(),
-                    entry.getMessageFormat(),
+                    entry.getEMessageFormat(),
                     entry.getSubmittedBy(),
                     entry.getIssueCount(),
                     entry.isIssuesTruncated(),
@@ -163,7 +163,7 @@ public class MessageIngestionService {
 
     public record QuarantineDetails(
             UUID id,
-            MessageFormat messageFormat,
+            EMessageFormat eMessageFormat,
             String submittedBy,
             String rawPayload,
             int issueCount,
@@ -182,7 +182,7 @@ public class MessageIngestionService {
                     .toList();
             return new QuarantineDetails(
                     entry.getId(),
-                    entry.getMessageFormat(),
+                    entry.getEMessageFormat(),
                     entry.getSubmittedBy(),
                     entry.getRawPayload(),
                     entry.getIssueCount(),

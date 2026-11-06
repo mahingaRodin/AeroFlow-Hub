@@ -5,7 +5,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.aeroflow.hub.model.TravelClearanceRequest;
-import com.aeroflow.hub.model.TravelClearanceStatus;
+import com.aeroflow.hub.enums.ETravelClearanceStatus;
 import com.aeroflow.hub.model.User;
 import com.aeroflow.hub.repository.TravelClearanceRequestRepository;
 import com.aeroflow.hub.repository.UserRepository;
@@ -16,6 +16,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 
 @ExtendWith(MockitoExtension.class)
 class TravelClearanceServiceTest {
@@ -30,16 +32,20 @@ class TravelClearanceServiceTest {
     private TravelClearanceService travelClearanceService;
 
     @Test
-    void findsRequestsAwaitingSupervisorReviewInRepositoryOrder() {
-        List<TravelClearanceRequest> pendingRequests = List.of(
+    void findsPagedRequestsAwaitingSupervisorReviewInRepositoryOrder() {
+        var pendingRequests = List.of(
                 TravelClearanceRequest.create(
                         "Crew positioning", "Nairobi", LocalDate.now(), new User()));
-        when(requestRepository.findAllByStatusOrderByCreatedAtAsc(TravelClearanceStatus.PENDING_SUPERVISOR))
-                .thenReturn(pendingRequests);
+        var pageable = PageRequest.of(0, 20);
+        var expectedPage = new PageImpl<>(pendingRequests, pageable, 41);
+        when(requestRepository.findAllByStatusOrderByCreatedAtAscIdAsc(
+                ETravelClearanceStatus.PENDING_SUPERVISOR, pageable))
+                .thenReturn(expectedPage);
 
-        List<TravelClearanceRequest> result = travelClearanceService.findPendingForSupervisor();
+        var result = travelClearanceService.findPendingForSupervisor(0, 20);
 
-        assertSame(pendingRequests, result);
-        verify(requestRepository).findAllByStatusOrderByCreatedAtAsc(TravelClearanceStatus.PENDING_SUPERVISOR);
+        assertSame(expectedPage, result);
+        verify(requestRepository).findAllByStatusOrderByCreatedAtAscIdAsc(
+                ETravelClearanceStatus.PENDING_SUPERVISOR, pageable);
     }
 }

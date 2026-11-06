@@ -11,7 +11,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.aeroflow.hub.model.QuarantineEntry;
-import com.aeroflow.hub.model.MessageFormat;
+import com.aeroflow.hub.enums.EMessageFormat;
 import com.aeroflow.hub.parser.SitaTypeBMessageParser;
 import com.aeroflow.hub.parser.SsimScheduleParser;
 import com.aeroflow.hub.repository.QuarantineEntryRepository;
@@ -52,7 +52,7 @@ class MessageIngestionServiceTest {
         var result = ingestionService.ingestSita(
                 "ZCZC AB123\nmessage body\nNNNN", "crew.user");
 
-        assertEquals(MessageFormat.SITA_TYPE_B, result.messageFormat());
+        assertEquals(EMessageFormat.SITA_TYPE_B, result.eMessageFormat());
         assertEquals(1, result.recordCount());
         assertFalse(result.quarantined());
         assertEquals(0, result.issueCount());
@@ -77,7 +77,7 @@ class MessageIngestionServiceTest {
         assertFalse(result.issuesTruncated());
         assertEquals(1, result.issueCount());
         assertNotNull(result.quarantineId());
-        assertEquals(MessageFormat.SSIM, stored.getMessageFormat());
+        assertEquals(EMessageFormat.SSIM, stored.getEMessageFormat());
         assertEquals("ops.user", stored.getSubmittedBy());
         assertEquals("1HEADER\nXINVALID", stored.getRawPayload());
         assertEquals(NOW.plusSeconds(30 * 24 * 60 * 60L), stored.getExpiresAt());
