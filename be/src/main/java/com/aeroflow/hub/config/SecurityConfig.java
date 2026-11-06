@@ -31,7 +31,6 @@ import java.util.List;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/v1/auth/**",
             "/api/v1/ussd/**",
             "/api/v1/policies/verify/**",
             "/api/v1/verify/**",
@@ -92,6 +91,13 @@ public class SecurityConfig {
                 )
                 .authenticationProvider(authenticationProvider)
                 .authorizeHttpRequests(authorize -> authorize
+                        .requestMatchers("/api/v1/auth/mfa/totp/**").authenticated()
+                        .requestMatchers(
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/register",
+                                "/api/v1/auth/verify-email",
+                                "/api/v1/auth/verification/resend",
+                                "/api/v1/auth/mfa/login").permitAll()
                         .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                         .anyRequest().authenticated()
                 )

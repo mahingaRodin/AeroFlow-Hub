@@ -22,6 +22,21 @@ public class GlobalExceptionHandler {
         return problem(HttpStatus.CONFLICT, exception.getMessage());
     }
 
+    @ExceptionHandler(InvalidEmailVerificationTokenException.class)
+    ProblemDetail handleInvalidEmailVerificationToken(InvalidEmailVerificationTokenException exception) {
+        return problem(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
+    @ExceptionHandler(MfaEnrollmentStateException.class)
+    ProblemDetail handleMfaEnrollmentState(MfaEnrollmentStateException exception) {
+        return problem(HttpStatus.CONFLICT, exception.getMessage());
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    ProblemDetail handleIllegalArgument(IllegalArgumentException exception) {
+        return problem(HttpStatus.BAD_REQUEST, exception.getMessage());
+    }
+
     @ExceptionHandler(AuthenticationException.class)
     ProblemDetail handleAuthenticationFailure() {
         return problem(HttpStatus.UNAUTHORIZED, "Authentication failed");

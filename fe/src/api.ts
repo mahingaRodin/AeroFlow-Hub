@@ -15,6 +15,18 @@ export class ApiError extends Error {
   }
 }
 
+export interface LoginResult {
+  accessToken: string | null
+  mfaRequired: boolean
+  challengeToken: string | null
+}
+
+export interface TotpSetup {
+  secret: string
+  otpauthUri: string
+  expiresAt: string
+}
+
 async function request<T>(
   path: string,
   token: string,
@@ -45,26 +57,76 @@ async function request<T>(
   return (await response.json()) as T
 }
 
-export async function login(username: string, password: string): Promise<string> {
-  const response = await fetch(`${API_BASE_URL}/auth/login`, {
+async function publicRequest<T>(path: string, body: unknown): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
+    body: JSON.stringify(body),
   })
 
   if (!response.ok) {
-    let message = 'Unable to sign in. Check your credentials and try again.'
+    let message = `Request failed (${response.status})`
     try {
       const body = (await response.json()) as { detail?: string; message?: string }
       message = body.detail || body.message || message
     } catch {
-      // Keep a useful sign-in message when the server returns an empty response.
+      // Some authentication errors have no JSON body.
     }
     throw new ApiError(message, response.status)
   }
 
-  const body = (await response.json()) as { accessToken: string }
-  return body.accessToken
+  return (await response.json()) as T
+}
+
+export function login(email: string, password: string): Promise<LoginResult> {
+  return publicRequest('/auth/login', { email, password })
+}
+
+export function registerCustomer(email: string, password: string): Promise<{ message: string }> {
+  return publicRequest('/auth/register', { email, password })
+}
+
+export function verifyCustomerEmail(token: string): Promise<{ message: string }> {
+  return publicRequest('/auth/verify-email', { token })
+}
+
+export function completeMfaLogin(challengeToken: string, code: string): Promise<LoginResult> {
+  return publicRequest('/auth/mfa/login', { challengeToken, code })
+}
+
+export function getMfaStatus(token: string): Promise<{ totpEnabled: boolean }> {
+  return request('/auth/mfa/status', token)
+}
+
+export function beginTotpSetup(
+  token: string,
+  currentPassword: string,
+): Promise<TotpSetup> {
+  return request('/auth/mfa/totp/setup', token, {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword }),
+  })
+}
+
+export function confirmTotpSetup(
+  token: string,
+  code: string,
+): Promise<{ recoveryCodes: string[] }> {
+  return request('/auth/mfa/totp/confirm', token, {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+}
+
+export function disableTotp(
+  token: string,
+  currentPassword: string,
+  code: string,
+): Promise<void> {
+  return request('/auth/mfa/totp/disable', token, {
+    method: 'POST',
+    body: JSON.stringify({ currentPassword, code }),
+  })
 }
 
 export function listRequests(token: string): Promise<TravelClearanceRequest[]> {

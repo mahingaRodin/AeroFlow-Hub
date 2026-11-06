@@ -24,6 +24,7 @@ import org.springframework.util.StringUtils;
 public class InitialAdminProvisioner implements ApplicationRunner {
 
     private static final String ADMIN_ROLE = "ROLE_ADMIN";
+    private static final String SUPERVISOR_ROLE = "ROLE_SUPERVISOR";
     private static final int MIN_PASSWORD_LENGTH = 12;
     private static final int MAX_BCRYPT_PASSWORD_BYTES = 72;
 
@@ -40,31 +41,49 @@ public class InitialAdminProvisioner implements ApplicationRunner {
             return;
         }
 
-        if (userRepository.count() > 0) {
-            log.info("Initial admin provisioning skipped because users already exist");
-            return;
+        validateIdentityProperties();
+
+        String username = properties.getUsername().strip();
+        String email = properties.getEmail().strip().toLowerCase(Locale.ROOT);
+        User admin = userRepository.findByEmailIgnoreCase(email).orElse(null);
+
+        if (admin != null && !admin.getUsername().equalsIgnoreCase(username)) {
+            throw new IllegalStateException(
+                    "BOOTSTRAP_ADMIN_USERNAME must match the account for BOOTSTRAP_ADMIN_EMAIL.");
+        }
+        if (admin == null && userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase(username, username).isPresent()) {
+            throw new IllegalStateException(
+                    "BOOTSTRAP_ADMIN_USERNAME is already assigned to a different account.");
         }
 
-        validateProperties();
+        if (admin == null) {
+            validatePassword();
+            admin = new User();
+            admin.setUsername(username);
+            admin.setEmail(email);
+            admin.setPassword(passwordEncoder.encode(properties.getPassword()));
+        }
 
-        Role adminRole = roleRepository.findByName(ADMIN_ROLE).orElseGet(() -> {
-            Role role = new Role();
-            role.setName(ADMIN_ROLE);
-            return roleRepository.save(role);
-        });
-
-        User admin = new User();
-        admin.setUsername(properties.getUsername().strip());
-        admin.setEmail(properties.getEmail().strip().toLowerCase(Locale.ROOT));
-        admin.setPassword(passwordEncoder.encode(properties.getPassword()));
         admin.setEnabled(true);
-        admin.setRoles(new HashSet<>(Set.of(adminRole)));
+        admin.setEmailVerified(true);
+        Set<Role> roles = new HashSet<>(admin.getRoles());
+        roles.add(getOrCreateRole(ADMIN_ROLE));
+        roles.add(getOrCreateRole(SUPERVISOR_ROLE));
+        admin.setRoles(roles);
         userRepository.save(admin);
 
-        log.info("Initial administrator provisioned as {}", admin.getUsername());
+        log.info("Bootstrap administrator and supervisor access is ready");
     }
 
-    private void validateProperties() {
+    private Role getOrCreateRole(String roleName) {
+        return roleRepository.findByName(roleName).orElseGet(() -> {
+            Role role = new Role();
+            role.setName(roleName);
+            return roleRepository.save(role);
+        });
+    }
+
+    private void validateIdentityProperties() {
         if (!StringUtils.hasText(properties.getUsername()) || properties.getUsername().length() > 100) {
             throw new IllegalStateException(
                     "BOOTSTRAP_ADMIN_USERNAME is required and must be at most 100 characters.");
@@ -76,6 +95,9 @@ public class InitialAdminProvisioner implements ApplicationRunner {
             throw new IllegalStateException(
                     "BOOTSTRAP_ADMIN_EMAIL must be a valid email address of at most 254 characters.");
         }
+    }
+
+    private void validatePassword() {
         String password = properties.getPassword();
         int passwordBytes = password == null ? 0 : password.getBytes(StandardCharsets.UTF_8).length;
         if (!StringUtils.hasText(password)

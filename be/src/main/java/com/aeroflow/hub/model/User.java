@@ -11,6 +11,7 @@ import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
@@ -49,6 +50,27 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private boolean enabled = true;
 
+    @Column(nullable = false)
+    private boolean emailVerified = true;
+
+    @Column(name = "mfa_enabled", nullable = false)
+    private boolean mfaEnabled;
+
+    @Column(name = "totp_secret_encrypted", columnDefinition = "TEXT")
+    private String totpSecretEncrypted;
+
+    @Column(name = "pending_totp_secret_encrypted", columnDefinition = "TEXT")
+    private String pendingTotpSecretEncrypted;
+
+    @Column(name = "pending_totp_expires_at")
+    private Instant pendingTotpExpiresAt;
+
+    @Column(name = "pending_totp_failed_attempts", nullable = false)
+    private int pendingTotpFailedAttempts;
+
+    @Column(name = "totp_last_used_step", nullable = false)
+    private long totpLastUsedStep = -1;
+
     @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
             name = "user_roles",
@@ -85,5 +107,10 @@ public class User implements UserDetails {
     @Override
     public boolean isCredentialsNonExpired() {
         return true;
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return enabled && emailVerified;
     }
 }

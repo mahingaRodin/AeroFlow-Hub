@@ -156,7 +156,22 @@ td { height: 65px; border-top: 1px solid #f0f2f6; color: #647289; font-size: 11p
 .login-card .field input { height: 45px; }
 .login-card .button { margin-top: 6px; }
 .login-help { margin: 19px 0 0; color: #9aa5b4; font-size: 10px; text-align: center; }
+.auth-switch { display: block; width: 100%; margin-top: 15px; border: 0; background: transparent; color: #4776e9; font-size: 11px; font-weight: 600; text-align: center; }
+.auth-switch:hover { color: #315dc5; text-decoration: underline; }
 .login-legal { margin-top: auto; color: #abb4c1; font-size: 10px; }
+.security-card { margin-top: 21px; overflow: hidden; border: 1px solid #e9edf3; border-radius: 9px; background: #fff; }
+.security-status { padding: 6px 10px; border-radius: 20px; background: #f0f2f5; color: #6f7c8f; font-size: 10px; font-weight: 600; }
+.security-status-on { background: #e8f7f0; color: #32976c; }
+.security-content { padding: 0 22px 22px; }
+.security-step { max-width: 430px; color: #68768c; font-size: 11px; line-height: 1.6; }
+.security-step p { margin: 0 0 14px; }
+.totp-secret { display: block; overflow-wrap: anywhere; padding: 12px; border: 1px dashed #cbd6e8; border-radius: 7px; background: #f8faff; color: #263753; font-size: 14px; letter-spacing: 1px; }
+.security-step .auth-switch { width: auto; margin: 9px 0 17px; padding: 0; text-align: left; }
+.recovery-panel { padding: 15px; border: 1px solid #f1dcae; border-radius: 8px; background: #fffaf0; color: #5e4d2d; }
+.recovery-panel strong { font-size: 12px; }
+.recovery-panel p { margin: 6px 0 13px; font-size: 11px; }
+.recovery-codes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+.recovery-codes code { padding: 7px; border-radius: 4px; background: #fff; color: #39352f; font-size: 11px; text-align: center; }
 
 @media (max-width: 1050px) {
   .sidebar { width: 218px; }

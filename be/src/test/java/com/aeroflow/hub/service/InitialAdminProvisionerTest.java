@@ -3,6 +3,7 @@ package com.aeroflow.hub.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -15,6 +16,7 @@ import com.aeroflow.hub.model.User;
 import com.aeroflow.hub.repository.RoleRepository;
 import com.aeroflow.hub.repository.UserRepository;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -50,12 +52,13 @@ class InitialAdminProvisionerTest {
     }
 
     @Test
-    void provisionsHashedAdminOnlyWhenUserTableIsEmpty() throws Exception {
-        Role adminRole = new Role();
-        adminRole.setName("ROLE_ADMIN");
-        when(userRepository.count()).thenReturn(0L);
+    void provisionsAdminAndSupervisorWithHashedPasswordWhenAccountDoesNotExist() throws Exception {
+        when(userRepository.findByEmailIgnoreCase("first.admin@example.com")).thenReturn(Optional.empty());
+        when(userRepository.findByUsernameIgnoreCaseOrEmailIgnoreCase("first.admin", "first.admin"))
+                .thenReturn(Optional.empty());
         when(roleRepository.findByName("ROLE_ADMIN")).thenReturn(Optional.empty());
-        when(roleRepository.save(any(Role.class))).thenReturn(adminRole);
+        when(roleRepository.findByName("ROLE_SUPERVISOR")).thenReturn(Optional.empty());
+        when(roleRepository.save(any(Role.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(passwordEncoder.encode("StrongTestPass123")).thenReturn("bcrypt-hash");
 
         provisioner.run(new DefaultApplicationArguments());
@@ -66,19 +69,35 @@ class InitialAdminProvisionerTest {
         assertEquals("first.admin", user.getUsername());
         assertEquals("first.admin@example.com", user.getEmail());
         assertEquals("bcrypt-hash", user.getPassword());
-        assertEquals(1, user.getRoles().size());
-        assertEquals("ROLE_ADMIN", user.getRoles().iterator().next().getName());
+        assertEquals(Set.of("ROLE_ADMIN", "ROLE_SUPERVISOR"),
+                user.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet()));
         assertFalse(user.getPassword().equals(properties.getPassword()));
     }
 
     @Test
-    void doesNotCreateAnAdminWhenAnyUserAlreadyExists() throws Exception {
-        when(userRepository.count()).thenReturn(1L);
+    void promotesOnlyTheConfiguredExistingAccountWithoutChangingItsPassword() throws Exception {
+        properties.setPassword("unused");
+        User existing = new User();
+        existing.setUsername("first.admin");
+        existing.setEmail("first.admin@example.com");
+        existing.setPassword("existing-password-hash");
+        Role adminRole = new Role();
+        adminRole.setName("ROLE_ADMIN");
+        Role supervisorRole = new Role();
+        supervisorRole.setName("ROLE_SUPERVISOR");
+        when(userRepository.findByEmailIgnoreCase("first.admin@example.com")).thenReturn(Optional.of(existing));
+        when(roleRepository.findByName("ROLE_ADMIN")).thenReturn(Optional.of(adminRole));
+        when(roleRepository.findByName("ROLE_SUPERVISOR")).thenReturn(Optional.of(supervisorRole));
 
         provisioner.run(new DefaultApplicationArguments());
 
-        verify(userRepository, never()).save(any(User.class));
-        verifyNoInteractions(roleRepository, passwordEncoder);
+        verify(userRepository).save(existing);
+        assertEquals("existing-password-hash", existing.getPassword());
+        assertTrue(existing.isEnabled());
+        assertTrue(existing.isEmailVerified());
+        assertEquals(Set.of("ROLE_ADMIN", "ROLE_SUPERVISOR"),
+                existing.getRoles().stream().map(Role::getName).collect(java.util.stream.Collectors.toSet()));
+        verify(passwordEncoder, never()).encode(any());
     }
 
     @Test
@@ -93,10 +112,21 @@ class InitialAdminProvisionerTest {
     @Test
     void rejectsShortBootstrapPasswordsBeforePersisting() {
         properties.setPassword("too-short");
-        when(userRepository.count()).thenReturn(0L);
 
         assertThrows(IllegalStateException.class, () -> provisioner.run(new DefaultApplicationArguments()));
 
         verify(userRepository, never()).save(any(User.class));
+    }
+
+    @Test
+    void refusesToPromoteAnAccountWhenConfiguredUsernameDoesNotMatchItsEmail() {
+        User existing = new User();
+        existing.setUsername("someone-else");
+        when(userRepository.findByEmailIgnoreCase("first.admin@example.com")).thenReturn(Optional.of(existing));
+
+        assertThrows(IllegalStateException.class, () -> provisioner.run(new DefaultApplicationArguments()));
+
+        verify(userRepository, never()).save(any(User.class));
+        verify(roleRepository, never()).save(any(Role.class));
     }
 }

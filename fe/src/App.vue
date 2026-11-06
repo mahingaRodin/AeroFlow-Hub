@@ -1,18 +1,46 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { ApiError, createRequest, listRequests, login, submitRequest } from './api'
+import {
+  ApiError,
+  beginTotpSetup,
+  completeMfaLogin,
+  confirmTotpSetup as confirmTotpSetupApi,
+  createRequest,
+  disableTotp,
+  getMfaStatus,
+  listRequests,
+  login,
+  registerCustomer,
+  submitRequest,
+  verifyCustomerEmail,
+} from './api'
 import type { CreateTravelClearanceRequest, TravelClearanceRequest, TravelClearanceStatus } from './types'
 
 const token = ref(localStorage.getItem('aeroflow.accessToken') || '')
 const username = ref(localStorage.getItem('aeroflow.username') || '')
+const authMode = ref<'login' | 'register' | 'mfa'>('login')
 const requests = ref<TravelClearanceRequest[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const showCreateForm = ref(false)
 const loginError = ref('')
+const authNotice = ref('')
+const mfaChallengeToken = ref('')
+const mfaCode = ref('')
+const registrationForm = ref({ email: '', password: '' })
 const pageError = ref('')
 const successMessage = ref('')
-const loginForm = ref({ username: '', password: '' })
+const securityError = ref('')
+const securityMessage = ref('')
+const securityLoading = ref(false)
+const mfaEnabled = ref(false)
+const securityPassword = ref('')
+const setupCode = ref('')
+const disableCode = ref('')
+const totpSecret = ref('')
+const otpauthUri = ref('')
+const recoveryCodes = ref<string[]>([])
+const loginForm = ref({ email: '', password: '' })
 const requestForm = ref<CreateTravelClearanceRequest>({
   purpose: '',
   destination: '',
@@ -71,14 +99,64 @@ async function signIn() {
   loginError.value = ''
   loading.value = true
   try {
-    token.value = await login(loginForm.value.username.trim(), loginForm.value.password)
-    username.value = loginForm.value.username.trim()
-    localStorage.setItem('aeroflow.accessToken', token.value)
-    localStorage.setItem('aeroflow.username', username.value)
+    const result = await login(loginForm.value.email.trim(), loginForm.value.password)
     loginForm.value.password = ''
-    await loadRequests()
+    if (result.mfaRequired) {
+      if (!result.challengeToken) throw new Error('The server did not return an MFA challenge.')
+      mfaChallengeToken.value = result.challengeToken
+      authMode.value = 'mfa'
+      return
+    }
+    if (!result.accessToken) throw new Error('The server did not return an access token.')
+    await completeSignIn(result.accessToken, loginForm.value.email.trim())
   } catch (error) {
     loginError.value = error instanceof Error ? error.message : 'Unable to sign in.'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function completeSignIn(accessToken: string, identity: string) {
+  token.value = accessToken
+  username.value = identity
+  localStorage.setItem('aeroflow.accessToken', accessToken)
+  localStorage.setItem('aeroflow.username', identity)
+  authMode.value = 'login'
+  mfaChallengeToken.value = ''
+  mfaCode.value = ''
+  await loadRequests()
+  await loadSecurityStatus()
+}
+
+async function verifyMfaLogin() {
+  loginError.value = ''
+  loading.value = true
+  try {
+    const result = await completeMfaLogin(mfaChallengeToken.value, mfaCode.value.trim())
+    if (!result.accessToken) throw new Error('MFA verification did not return an access token.')
+    await completeSignIn(result.accessToken, loginForm.value.email.trim())
+  } catch (error) {
+    loginError.value = error instanceof Error ? error.message : 'Unable to verify your MFA code.'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function signUp() {
+  loginError.value = ''
+  authNotice.value = ''
+  loading.value = true
+  try {
+    const result = await registerCustomer(
+      registrationForm.value.email.trim(),
+      registrationForm.value.password,
+    )
+    authNotice.value = result.message
+    authMode.value = 'login'
+    loginForm.value.email = registrationForm.value.email.trim()
+    registrationForm.value = { email: '', password: '' }
+  } catch (error) {
+    loginError.value = error instanceof Error ? error.message : 'Unable to create your account.'
   } finally {
     loading.value = false
   }
@@ -90,6 +168,68 @@ function signOut() {
   requests.value = []
   localStorage.removeItem('aeroflow.accessToken')
   localStorage.removeItem('aeroflow.username')
+}
+
+async function loadSecurityStatus() {
+  if (!token.value) return
+  try {
+    const status = await getMfaStatus(token.value)
+    mfaEnabled.value = status.totpEnabled
+  } catch (error) {
+    securityError.value = error instanceof Error ? error.message : 'Could not load security settings.'
+  }
+}
+
+async function startTotpSetup() {
+  securityError.value = ''
+  securityMessage.value = ''
+  recoveryCodes.value = []
+  securityLoading.value = true
+  try {
+    const setup = await beginTotpSetup(token.value, securityPassword.value)
+    totpSecret.value = setup.secret
+    otpauthUri.value = setup.otpauthUri
+    securityPassword.value = ''
+  } catch (error) {
+    securityError.value = error instanceof Error ? error.message : 'Could not start authenticator setup.'
+  } finally {
+    securityLoading.value = false
+  }
+}
+
+async function confirmTotpSetup() {
+  securityError.value = ''
+  securityLoading.value = true
+  try {
+    const result = await confirmTotpSetupApi(token.value, setupCode.value.trim())
+    recoveryCodes.value = result.recoveryCodes
+    mfaEnabled.value = true
+    totpSecret.value = ''
+    otpauthUri.value = ''
+    setupCode.value = ''
+    securityMessage.value = 'Authenticator app enabled. Save these recovery codes now; they will not be shown again.'
+  } catch (error) {
+    securityError.value = error instanceof Error ? error.message : 'Could not confirm authenticator setup.'
+  } finally {
+    securityLoading.value = false
+  }
+}
+
+async function turnOffTotp() {
+  securityError.value = ''
+  securityLoading.value = true
+  try {
+    await disableTotp(token.value, securityPassword.value, disableCode.value.trim())
+    mfaEnabled.value = false
+    securityPassword.value = ''
+    disableCode.value = ''
+    recoveryCodes.value = []
+    securityMessage.value = 'Authenticator app MFA has been disabled.'
+  } catch (error) {
+    securityError.value = error instanceof Error ? error.message : 'Could not disable MFA.'
+  } finally {
+    securityLoading.value = false
+  }
 }
 
 async function saveRequest() {
@@ -122,7 +262,21 @@ async function submitDraft(request: TravelClearanceRequest) {
   }
 }
 
-onMounted(loadRequests)
+onMounted(async () => {
+  const verificationToken = new URLSearchParams(window.location.search).get('token')
+  if (verificationToken) {
+    window.history.replaceState({}, '', window.location.pathname)
+    try {
+      const result = await verifyCustomerEmail(verificationToken)
+      authNotice.value = result.message
+    } catch (error) {
+      authNotice.value = error instanceof Error ? error.message : 'Email verification failed.'
+      loginError.value = authNotice.value
+      authNotice.value = ''
+    }
+  }
+  await loadRequests()
+})
 </script>
 
 <template>
@@ -143,14 +297,15 @@ onMounted(loadRequests)
     </section>
 
     <section class="login-panel">
-      <form class="login-card" @submit.prevent="signIn">
+      <form v-if="authMode === 'login'" class="login-card" @submit.prevent="signIn">
         <div class="eyebrow">WELCOME BACK</div>
-        <h2>Sign in to your workspace</h2>
-        <p class="muted">Use your AeroFlow Hub account to continue.</p>
+        <h2>Sign in to AeroFlow Hub</h2>
+        <p class="muted">Use your verified email address to continue.</p>
+        <div v-if="authNotice" class="alert alert-success" role="status">{{ authNotice }}</div>
         <div v-if="loginError" class="alert alert-error" role="alert">{{ loginError }}</div>
         <label class="field">
-          <span>Username</span>
-          <input v-model="loginForm.username" autocomplete="username" placeholder="Your username" required />
+          <span>Email address</span>
+          <input v-model="loginForm.email" autocomplete="username" type="email" placeholder="you@example.com" required />
         </label>
         <label class="field">
           <span>Password</span>
@@ -159,7 +314,48 @@ onMounted(loadRequests)
         <button class="button button-primary button-wide" type="submit" :disabled="loading">
           {{ loading ? 'Signing in…' : 'Sign in' }} <span aria-hidden="true">→</span>
         </button>
-        <p class="login-help">Need access? Contact your AeroFlow Hub administrator.</p>
+        <button class="auth-switch" type="button" @click="authMode = 'register'; loginError = ''; authNotice = ''">
+          Create a customer account
+        </button>
+        <p class="login-help">Crew workspace access is managed by your AeroFlow Hub administrator.</p>
+      </form>
+
+      <form v-else-if="authMode === 'register'" class="login-card" @submit.prevent="signUp">
+        <div class="eyebrow">CUSTOMER ACCOUNT</div>
+        <h2>Create your account</h2>
+        <p class="muted">We’ll email you a verification link before sign-in is enabled.</p>
+        <div v-if="loginError" class="alert alert-error" role="alert">{{ loginError }}</div>
+        <label class="field">
+          <span>Email address</span>
+          <input v-model="registrationForm.email" autocomplete="email" type="email" maxlength="254" required />
+        </label>
+        <label class="field">
+          <span>Password</span>
+          <input v-model="registrationForm.password" autocomplete="new-password" type="password" minlength="12" maxlength="72" required />
+        </label>
+        <button class="button button-primary button-wide" type="submit" :disabled="loading">
+          {{ loading ? 'Creating account…' : 'Create account' }} <span aria-hidden="true">→</span>
+        </button>
+        <button class="auth-switch" type="button" @click="authMode = 'login'; loginError = ''">
+          Already registered? Sign in
+        </button>
+      </form>
+
+      <form v-else class="login-card" @submit.prevent="verifyMfaLogin">
+        <div class="eyebrow">ACCOUNT PROTECTION</div>
+        <h2>Verify it’s you</h2>
+        <p class="muted">Enter a code from your authenticator app or one of your recovery codes.</p>
+        <div v-if="loginError" class="alert alert-error" role="alert">{{ loginError }}</div>
+        <label class="field">
+          <span>Authenticator or recovery code</span>
+          <input v-model="mfaCode" autocomplete="one-time-code" inputmode="text" maxlength="64" required />
+        </label>
+        <button class="button button-primary button-wide" type="submit" :disabled="loading">
+          {{ loading ? 'Verifying…' : 'Verify and sign in' }} <span aria-hidden="true">→</span>
+        </button>
+        <button class="auth-switch" type="button" @click="authMode = 'login'; mfaChallengeToken = ''; mfaCode = ''; loginError = ''">
+          Cancel and return to sign in
+        </button>
       </form>
       <div class="login-legal">Secure crew operations · AeroFlow Hub</div>
     </section>
@@ -176,6 +372,7 @@ onMounted(loadRequests)
       <nav class="side-nav" aria-label="Main navigation">
         <a class="nav-item active" href="#overview"><span class="nav-icon">◫</span> Overview</a>
         <a class="nav-item" href="#requests"><span class="nav-icon">▤</span> My requests <span class="nav-count">{{ requests.length }}</span></a>
+        <a class="nav-item" href="#security"><span class="nav-icon">⌑</span> Account security</a>
       </nav>
 
       <div class="sidebar-bottom">
@@ -281,6 +478,63 @@ onMounted(loadRequests)
             </table>
           </div>
           <div v-if="requests.length > 6" class="table-footer">Showing 6 of {{ requests.length }} requests</div>
+        </section>
+
+        <section id="security" class="security-card">
+          <div class="section-heading">
+            <div>
+              <h2>Account security</h2>
+              <p class="muted">Protect your account with an authenticator app.</p>
+            </div>
+            <span class="security-status" :class="{ 'security-status-on': mfaEnabled }">
+              {{ mfaEnabled ? 'MFA enabled' : 'MFA not enabled' }}
+            </span>
+          </div>
+
+          <div class="security-content">
+            <div v-if="securityError" class="alert alert-error" role="alert">{{ securityError }}</div>
+            <div v-if="securityMessage" class="alert alert-success" role="status">{{ securityMessage }}</div>
+
+            <div v-if="recoveryCodes.length" class="recovery-panel">
+              <strong>Save your recovery codes</strong>
+              <p>Each code works once. Store them somewhere safe; they will not be shown again.</p>
+              <div class="recovery-codes">
+                <code v-for="code in recoveryCodes" :key="code">{{ code }}</code>
+              </div>
+            </div>
+
+            <div v-else-if="totpSecret" class="security-step">
+              <p>In your authenticator app, add an account using this setup key:</p>
+              <code class="totp-secret">{{ totpSecret }}</code>
+              <a class="auth-switch" :href="otpauthUri">Open in authenticator app</a>
+              <form @submit.prevent="confirmTotpSetup">
+                <label class="field">
+                  <span>6-digit authenticator code</span>
+                  <input v-model="setupCode" autocomplete="one-time-code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required />
+                </label>
+                <button class="button button-primary" type="submit" :disabled="securityLoading">
+                  {{ securityLoading ? 'Confirming…' : 'Confirm and enable MFA' }}
+                </button>
+              </form>
+            </div>
+
+            <form v-else-if="mfaEnabled" class="security-step" @submit.prevent="turnOffTotp">
+              <p>MFA is required at every sign-in. Disabling it requires your password and a current authenticator or recovery code.</p>
+              <label class="field"><span>Password</span><input v-model="securityPassword" type="password" autocomplete="current-password" required /></label>
+              <label class="field"><span>Authenticator or recovery code</span><input v-model="disableCode" autocomplete="one-time-code" required /></label>
+              <button class="button button-secondary" type="submit" :disabled="securityLoading">
+                {{ securityLoading ? 'Updating…' : 'Disable authenticator MFA' }}
+              </button>
+            </form>
+
+            <form v-else class="security-step" @submit.prevent="startTotpSetup">
+              <p>Enable an authenticator app to require a second factor every time you sign in.</p>
+              <label class="field"><span>Confirm your password</span><input v-model="securityPassword" type="password" autocomplete="current-password" required /></label>
+              <button class="button button-primary" type="submit" :disabled="securityLoading">
+                {{ securityLoading ? 'Starting…' : 'Set up authenticator MFA' }}
+              </button>
+            </form>
+          </div>
         </section>
 
         <footer class="page-footer"><span>© 2026 AeroFlow Hub</span><span>Built for the people who keep us moving <span class="footer-heart">✳</span></span></footer>

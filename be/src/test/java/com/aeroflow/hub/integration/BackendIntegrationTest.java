@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import java.util.Base64;
 
 @Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(properties = {
@@ -44,6 +45,8 @@ class BackendIntegrationTest {
     private static final String ADMIN_PASSWORD = "IntegrationAdminPassword123";
     private static final String TEST_JWT_SECRET =
             "7c2M3k9zX4s8A1b6C0d5E9f2G7h1J4m8L3n6P0q5R9t=";
+    private static final String TEST_MFA_ENCRYPTION_KEY =
+            Base64.getEncoder().encodeToString(new byte[32]);
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES =
@@ -74,6 +77,7 @@ class BackendIntegrationTest {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
         registry.add("JWT_SECRET_BASE64", () -> TEST_JWT_SECRET);
         registry.add("APP_SECURITY_JWT_SECRET", () -> TEST_JWT_SECRET);
+        registry.add("MFA_ENCRYPTION_KEY_BASE64", () -> TEST_MFA_ENCRYPTION_KEY);
     }
 
     @Test
@@ -82,6 +86,13 @@ class BackendIntegrationTest {
         assertEquals("integration-admin@example.test", admin.getEmail());
         assertTrue(passwordEncoder.matches(ADMIN_PASSWORD, admin.getPassword()));
         assertNotEquals(ADMIN_PASSWORD, admin.getPassword());
+
+        mockMvc.perform(get("/api/v1/auth/mfa/status"))
+                .andExpect(status().isUnauthorized());
+        mockMvc.perform(post("/api/v1/auth/mfa/totp/setup")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsBytes(new PasswordRequest(ADMIN_PASSWORD))))
+                .andExpect(status().isUnauthorized());
 
         initialAdminProvisioner.run(new DefaultApplicationArguments());
         assertEquals(1, userRepository.count());
@@ -132,6 +143,9 @@ class BackendIntegrationTest {
     }
 
     private record LoginRequest(String username, String password) {
+    }
+
+    private record PasswordRequest(String currentPassword) {
     }
 
     private record IngestionRequest(String payload) {
