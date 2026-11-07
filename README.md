@@ -151,6 +151,10 @@ environment variables.
 * `POST /api/v1/travel-clearance-requests` — create a draft clearance request.
 * `GET /api/v1/travel-clearance-requests` — list the authenticated user's requests.
 * `POST /api/v1/travel-clearance-requests/{id}/submit` — submit a draft for review.
+* `GET /api/v1/travel-clearance-requests/{id}/history` — view the request's
+  chronological status history (requester, supervisor, or admin). The audit
+  trail records who created, submitted, approved, or rejected each request;
+  history is recorded for transitions made after migration V4.
 * `GET /api/v1/travel-clearance-requests/pending?page=0&size=20` — page through
   requests awaiting review, oldest first (maximum page size: 100; requires the
   `ROLE_SUPERVISOR` authority).

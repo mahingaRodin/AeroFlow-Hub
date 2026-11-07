@@ -1,6 +1,7 @@
 package com.aeroflow.hub.controller;
 
 import com.aeroflow.hub.model.TravelClearanceRequest;
+import com.aeroflow.hub.model.TravelClearanceHistoryEntry;
 import com.aeroflow.hub.enums.ETravelClearanceStatus;
 import com.aeroflow.hub.service.TravelClearanceService;
 import jakarta.validation.Valid;
@@ -14,6 +15,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.Set;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -72,6 +74,18 @@ public class TravelClearanceController {
         return toResponse(travelClearanceService.findForRequester(id, authentication.getName()));
     }
 
+    @GetMapping("/{id}/history")
+    public List<TravelClearanceHistoryResponse> findHistory(
+            @PathVariable UUID id,
+            Authentication authentication
+    ) {
+        boolean reviewer = authentication.getAuthorities().stream()
+                .anyMatch(authority -> Set.of("ROLE_SUPERVISOR", "ROLE_ADMIN").contains(authority.getAuthority()));
+        return travelClearanceService.findHistory(id, authentication.getName(), reviewer).stream()
+                .map(TravelClearanceController::toHistoryResponse)
+                .toList();
+    }
+
     @PostMapping("/{id}/submit")
     public TravelClearanceResponse submit(@PathVariable UUID id, Authentication authentication) {
         return toResponse(travelClearanceService.submit(id, authentication.getName()));
@@ -79,14 +93,16 @@ public class TravelClearanceController {
 
     @PostMapping("/{id}/approve")
     @PreAuthorize("hasRole('SUPERVISOR')")
-    public TravelClearanceResponse approve(@PathVariable UUID id) {
-        return toResponse(travelClearanceService.decide(id, ETravelClearanceStatus.APPROVED));
+    public TravelClearanceResponse approve(@PathVariable UUID id, Authentication authentication) {
+        return toResponse(travelClearanceService.decide(
+                id, ETravelClearanceStatus.APPROVED, authentication.getName()));
     }
 
     @PostMapping("/{id}/reject")
     @PreAuthorize("hasRole('SUPERVISOR')")
-    public TravelClearanceResponse reject(@PathVariable UUID id) {
-        return toResponse(travelClearanceService.decide(id, ETravelClearanceStatus.REJECTED));
+    public TravelClearanceResponse reject(@PathVariable UUID id, Authentication authentication) {
+        return toResponse(travelClearanceService.decide(
+                id, ETravelClearanceStatus.REJECTED, authentication.getName()));
     }
 
     private static TravelClearanceResponse toResponse(TravelClearanceRequest request) {
@@ -99,6 +115,22 @@ public class TravelClearanceController {
                 request.getRequester().getUsername(),
                 request.getCreatedAt(),
                 request.getUpdatedAt());
+    }
+
+    private static TravelClearanceHistoryResponse toHistoryResponse(TravelClearanceHistoryEntry entry) {
+        return new TravelClearanceHistoryResponse(
+                entry.getPreviousStatus(),
+                entry.getNewStatus(),
+                entry.getChangedBy(),
+                entry.getChangedAt());
+    }
+
+    public record TravelClearanceHistoryResponse(
+            ETravelClearanceStatus previousStatus,
+            ETravelClearanceStatus newStatus,
+            String changedBy,
+            Instant changedAt
+    ) {
     }
 
     public record TravelClearanceResponse(

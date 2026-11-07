@@ -1,10 +1,13 @@
 package com.aeroflow.hub.service;
 
 import com.aeroflow.hub.exception.ResourceNotFoundException;
+import com.aeroflow.hub.model.TravelClearanceHistoryEntry;
 import com.aeroflow.hub.model.TravelClearanceRequest;
 import com.aeroflow.hub.enums.ETravelClearanceStatus;
+import com.aeroflow.hub.repository.TravelClearanceHistoryRepository;
 import com.aeroflow.hub.repository.TravelClearanceRequestRepository;
 import com.aeroflow.hub.repository.UserRepository;
+import java.time.Clock;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -19,13 +22,17 @@ import org.springframework.transaction.annotation.Transactional;
 public class TravelClearanceService {
 
     private final TravelClearanceRequestRepository requestRepository;
+    private final TravelClearanceHistoryRepository historyRepository;
     private final UserRepository userRepository;
+    private final Clock clock;
 
     @Transactional
     public TravelClearanceRequest create(String username, String purpose, String destination, LocalDate travelDate) {
         var requester = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return requestRepository.save(TravelClearanceRequest.create(purpose, destination, travelDate, requester));
+        var request = requestRepository.save(TravelClearanceRequest.create(purpose, destination, travelDate, requester));
+        recordTransition(request, null, ETravelClearanceStatus.DRAFT, username);
+        return request;
     }
 
     @Transactional(readOnly = true)
@@ -45,18 +52,43 @@ public class TravelClearanceService {
                 .orElseThrow(() -> new ResourceNotFoundException("Travel clearance request not found"));
     }
 
+    @Transactional(readOnly = true)
+    public List<TravelClearanceHistoryEntry> findHistory(UUID id, String username, boolean reviewer) {
+        if (reviewer) {
+            requestRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Travel clearance request not found"));
+        } else {
+            findForRequester(id, username);
+        }
+        return historyRepository.findAllByRequest_IdOrderByChangedAtAscIdAsc(id);
+    }
+
     @Transactional
     public TravelClearanceRequest submit(UUID id, String username) {
         var request = findForRequester(id, username);
+        var previousStatus = request.getStatus();
         request.transitionTo(ETravelClearanceStatus.PENDING_SUPERVISOR);
+        recordTransition(request, previousStatus, request.getStatus(), username);
         return request;
     }
 
     @Transactional
-    public TravelClearanceRequest decide(UUID id, ETravelClearanceStatus decision) {
+    public TravelClearanceRequest decide(UUID id, ETravelClearanceStatus decision, String reviewerUsername) {
         var request = requestRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Travel clearance request not found"));
+        var previousStatus = request.getStatus();
         request.transitionTo(decision);
+        recordTransition(request, previousStatus, request.getStatus(), reviewerUsername);
         return request;
+    }
+
+    private void recordTransition(
+            TravelClearanceRequest request,
+            ETravelClearanceStatus previousStatus,
+            ETravelClearanceStatus newStatus,
+            String changedBy
+    ) {
+        historyRepository.save(TravelClearanceHistoryEntry.record(
+                request, previousStatus, newStatus, changedBy, clock.instant()));
     }
 }
