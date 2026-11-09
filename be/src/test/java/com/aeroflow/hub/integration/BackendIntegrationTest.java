@@ -19,6 +19,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.DefaultApplicationArguments;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -50,7 +51,8 @@ class BackendIntegrationTest {
 
     @Container
     private static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:16-alpine");
+            new PostgreSQLContainer<>("postgis/postgis:16-3.4")
+                    .withInitScript("db/init-postgis.sql");
 
     @Autowired
     private MockMvc mockMvc;
@@ -70,6 +72,9 @@ class BackendIntegrationTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     @DynamicPropertySource
     static void configureDatabase(DynamicPropertyRegistry registry) {
         registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
@@ -82,10 +87,16 @@ class BackendIntegrationTest {
 
     @Test
     void migratesPostgresBootstrapsAdminAuthenticatesAndQuarantinesInvalidInput() throws Exception {
+        mockMvc.perform(get("/actuator/health/readiness"))
+                .andExpect(status().isOk());
+
         User admin = userRepository.findByUsername("integration-admin").orElseThrow();
         assertEquals("integration-admin@example.test", admin.getEmail());
         assertTrue(passwordEncoder.matches(ADMIN_PASSWORD, admin.getPassword()));
         assertNotEquals(ADMIN_PASSWORD, admin.getPassword());
+        assertTrue(admin.getAuthorities().stream()
+                .anyMatch(authority -> authority.getAuthority().equals("ROLE_SUPERVISOR")));
+        assertTrue(jdbcTemplate.queryForObject("SELECT PostGIS_Full_Version()", String.class).contains("POSTGIS"));
 
         mockMvc.perform(get("/api/v1/auth/mfa/status"))
                 .andExpect(status().isUnauthorized());
@@ -114,7 +125,54 @@ class BackendIntegrationTest {
 
         mockMvc.perform(get("/api/v1/travel-clearance-requests/pending")
                         .header("Authorization", "Bearer " + token))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/operations/airports/import")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"airports":[
+                                  {"iataCode":"KGL","name":"Kigali International Airport",
+                                   "countryCode":"RW","latitude":-1.9686,"longitude":30.1395},
+                                  {"iataCode":"NBO","name":"Jomo Kenyatta International Airport",
+                                   "countryCode":"KE","latitude":-1.3192,"longitude":36.9278}
+                                ]}
+                                """))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(post("/api/v1/operations/flights/import")
+                        .header("Authorization", "Bearer " + token)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"flights":[
+                                  {"flightNumber":"WB452","departureAirport":"KGL","arrivalAirport":"NBO",
+                                   "departureTime":"2026-11-09T08:00:00Z","arrivalTime":"2026-11-09T09:30:00Z",
+                                   "aircraftRegistration":"9XR-WB"}
+                                ]}
+                                """))
+                .andExpect(status().isOk());
+
+        JsonNode airports = objectMapper.readTree(mockMvc.perform(get("/api/v1/gis/airports")
+                        .header("Authorization", "Bearer " + token)
+                        .accept("application/geo+json"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray());
+        assertEquals("FeatureCollection", airports.path("type").asText());
+        assertEquals(2, airports.path("features").size());
+
+        JsonNode flights = objectMapper.readTree(mockMvc.perform(get("/api/v1/gis/flights")
+                        .param("from", "2026-11-09T00:00:00Z")
+                        .param("to", "2026-11-10T00:00:00Z")
+                        .header("Authorization", "Bearer " + token)
+                        .accept("application/geo+json"))
+                .andExpect(status().isOk())
+                .andReturn()
+                .getResponse()
+                .getContentAsByteArray());
+        assertEquals(1, flights.path("features").size());
+        assertEquals("LineString", flights.path("features").get(0).path("geometry").path("type").asText());
 
         String malformedPayload = "1HEADER\nXINVALID";
         JsonNode ingestionResponse = objectMapper.readTree(mockMvc.perform(post("/api/v1/ingestion/ssim")

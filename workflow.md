@@ -21,10 +21,15 @@ already available.
    `JWT_SECRET_BASE64`, and a separate `MFA_ENCRYPTION_KEY_BASE64`. Both keys
    must be generated locally and kept out of Git; the MFA key must remain
    stable to decrypt enrolled TOTP secrets.
-3. Start the API from `be/` with `mvn spring-boot:run`. Flyway applies pending
+3. Start the API from `be/` with `mvn spring-boot:run` (port 9092 by default),
+   or start the full local stack with Docker Compose. Flyway applies pending
    migrations and Hibernate validates the schema.
 4. Start the Vue development server from `fe/` with `npm run dev`. The Vite
-   development proxy forwards `/api` requests to the backend on port 8080.
+   development proxy forwards `/api` requests to the backend on port 9092.
+
+The Docker Compose stack runs PostgreSQL/PostGIS, the API, frontend, and
+Mailpit. It is started with `docker compose --env-file be/.env up --build`.
+The backend exposes actuator health/readiness endpoints for orchestration.
 
 Required startup secrets are deliberately validated rather than replaced with
 insecure defaults. SMTP is used for customer verification email and must be
@@ -145,7 +150,7 @@ GeoJSON endpoints should not be mistaken for those integrations.
 
 Run the backend tests from `be/` with `mvn test`. PostgreSQL integration tests
 use Testcontainers and are skipped when Docker is unavailable. The project
-keeps schema changes in ordered Flyway migrations; the latest committed
-migrations include the clearance audit history (V4) and airport/scheduled
-flight tables (V5). Do not edit an already-applied migration to change a
+keeps schema changes in ordered Flyway migrations; the latest migrations in
+this worktree include the clearance audit history (V4), airport/scheduled flight
+tables (V5), and PostGIS enablement (V6). Do not edit an already-applied migration to change a
 database; add a new migration instead.

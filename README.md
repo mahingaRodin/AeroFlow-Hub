@@ -105,7 +105,7 @@ Start the backend from `be/`:
 mvn spring-boot:run
 ```
 
-The API listens on `http://localhost:8080`. `DATABASE_URL`,
+The API listens on `http://localhost:9092` by default. `DATABASE_URL`,
 `DATABASE_USERNAME`, `DATABASE_POOL_SIZE`, and `JWT_EXPIRATION_MS` can be set
 to override their defaults. `CORS_ALLOWED_ORIGINS` accepts a comma-separated
 list of frontend origins; the default allows the local Vite server.
@@ -120,12 +120,30 @@ npm run dev
 ```
 
 Open the local URL printed by Vite (normally `http://localhost:5173`). Requests
-to `/api` are proxied to `http://localhost:8080`; override the target with
+to `/api` are proxied to `http://localhost:9092`; override the target with
 `VITE_API_PROXY_TARGET`. For a deployment with a separately hosted API, set
 `VITE_API_BASE_URL` to the API base (for example
 `https://api.example.com/api/v1`) and configure `CORS_ALLOWED_ORIGINS` on the
 backend to include the frontend origin. See `fe/.env.example` for the frontend
 environment variables.
+
+### Run the complete local stack with Docker Compose
+Docker Compose starts PostgreSQL with PostGIS, the backend, Vue frontend, and
+Mailpit for local email testing. First configure `be/.env` as described above,
+then run from the repository root:
+
+```powershell
+docker compose --env-file be/.env up --build
+```
+
+Open the frontend at `http://localhost:5173`, backend/OpenAPI at
+`http://localhost:9092`, and Mailpit at `http://localhost:8025`. The Compose
+stack uses a named database volume and installs PostGIS on first database
+initialization. To stop the stack, run `docker compose --env-file be/.env down`;
+add `-v` only if you intentionally want to delete the local database volume.
+For an existing non-Compose PostgreSQL database, a DBA must install the PostGIS
+extension before applying migration V6 if the application database role cannot
+create extensions.
 
 ### Initial API and workflow
 * `POST /api/v1/auth/login` — authenticate by email (or a provisioned username)

@@ -33,6 +33,16 @@ spring:
 server:
   port: ${SERVER_PORT:9092}
 
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
 app:
   auth:
     public-base-url: ${APP_PUBLIC_BASE_URL:http://localhost:5173}
