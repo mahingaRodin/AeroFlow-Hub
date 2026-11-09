@@ -161,6 +161,75 @@ environment variables.
 * `POST /api/v1/travel-clearance-requests/{id}/approve` or `/reject` — supervisor
   decisions (requires the `ROLE_SUPERVISOR` authority).
 
+### Flight schedules in QGIS
+The backend exposes internal GeoJSON layers for QGIS and other GIS clients.
+Only users with `ROLE_SUPERVISOR` or `ROLE_ADMIN` can read these layers; only
+admins can import data. Import airport reference data first, then normalized
+scheduled-flight records:
+
+* `POST /api/v1/operations/airports/import` — upsert airport IATA code, name,
+  ISO 3166-1 alpha-2 country code, and WGS84 latitude/longitude.
+* `POST /api/v1/operations/flights/import` — upsert flight number, departure and
+  arrival airport codes, ISO-8601 departure/arrival instants, and optional
+  aircraft registration. Airports must already exist.
+* `GET /api/v1/gis/airports` — GeoJSON `Point` features.
+* `GET /api/v1/gis/flights?from=2026-11-09T00:00:00Z&to=2026-11-10T00:00:00Z`
+  — GeoJSON `LineString` features for flights departing in the requested
+  interval. The interval must be positive and no longer than 31 days; responses
+  are limited to 10,000 features.
+
+Example airport import:
+
+```json
+{
+  "airports": [
+    {
+      "iataCode": "KGL",
+      "name": "Kigali International Airport",
+      "countryCode": "RW",
+      "latitude": -1.9686,
+      "longitude": 30.1395
+    },
+    {
+      "iataCode": "NBO",
+      "name": "Jomo Kenyatta International Airport",
+      "countryCode": "KE",
+      "latitude": -1.3192,
+      "longitude": 36.9278
+    }
+  ]
+}
+```
+
+Example flight import (airport records must be loaded first):
+
+```json
+{
+  "flights": [
+    {
+      "flightNumber": "WB452",
+      "departureAirport": "KGL",
+      "arrivalAirport": "NBO",
+      "departureTime": "2026-11-09T08:00:00Z",
+      "arrivalTime": "2026-11-09T09:30:00Z",
+      "aircraftRegistration": "9XR-WB"
+    }
+  ]
+}
+```
+
+In QGIS, add the authenticated GeoJSON URLs as vector layers. Configure the
+backend URL and bearer-token authentication in QGIS; do not put JWTs in URLs or
+saved project files. Coordinates use WGS84 longitude/latitude order. Flight
+lines are direct airport-to-airport visual connections, not actual flown tracks
+or live aircraft positions.
+
+These import endpoints currently accept normalized JSON records; the SSIM
+parser still recognizes record framing but does not yet extract schedule fields.
+Use approved schedule data and coordinate sources. Production deployments need
+role-specific accounts, access controls, and provider/licensing review before
+loading operational airline data.
+
 The frontend supports customer registration, email verification, sign-in, TOTP
 enrollment and recovery codes, and personal travel-clearance requests.
 TOTP secrets are encrypted at rest using `MFA_ENCRYPTION_KEY_BASE64`;
